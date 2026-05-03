@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>CleanCity — My Reports</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"/>
+</head>
+<body style="background:#f0f4ee;">
+<div class="screen active" style="flex-direction:column;">
+
+  <div class="status-bar"><span>9:41</span><span>My Reports</span><span>&#9679;&#9679;&#9679;</span></div>
+
+  <div class="page-header-row">
+    <a href="home.html" class="header-back">&#8592;</a>
+    <div><h2>My Reports</h2><p>Track all your submissions</p></div>
+  </div>
+
+  <div class="page-body" style="flex:1;">
+
+    <div class="stats-grid-3">
+      <div class="stat-card"><div class="stat-num" id="myTotal">--</div><div class="stat-label">Total</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:#ef9f27;" id="myPending">--</div><div class="stat-label">Pending</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:#2d9e5f;" id="myResolved">--</div><div class="stat-label">Resolved</div></div>
+    </div>
+
+    <div>
+      <div class="section-label">Your Submissions</div>
+      <div id="myReportsList">
+        <div class="empty-state"><div class="empty-icon">⏳</div><p>Loading your reports...</p></div>
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="home.html" class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">Home</div></a>
+    <a href="report.html" class="nav-item"><div class="nav-icon">📸</div><div class="nav-label">Report</div></a>
+    <a href="map.html" class="nav-item"><div class="nav-icon">🗺️</div><div class="nav-label">Map</div></a>
+    <a href="profile.html" class="nav-item active"><div class="nav-icon">👤</div><div class="nav-label">Profile</div></a>
+  </nav>
+
+</div>
+
+<script src="../js/supabase.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  if (!requireAuth()) {}
+
+  async function loadMyReports() {
+    const token = getToken();
+    const userId = getUserId();
+    try {
+      const reports = await supabase.getMyReports(userId, token);
+
+      document.getElementById('myTotal').textContent = reports.length;
+      document.getElementById('myPending').textContent = reports.filter(r => r.status === 'Pending').length;
+      document.getElementById('myResolved').textContent = reports.filter(r => r.status === 'Resolved').length;
+
+      if (reports.length === 0) {
+        document.getElementById('myReportsList').innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>You haven\'t submitted any reports yet.<br/><a href="report.html" style="color:#1a6b3c;font-weight:600;">Report your first issue →</a></p></div>';
+        return;
+      }
+
+      document.getElementById('myReportsList').innerHTML = reports.map(r => `
+        <div class="report-card">
+          <div class="report-card-top">
+            <div>
+              <div class="report-card-title">${r.category}</div>
+              <div class="report-card-id">${r.id.substring(0,8).toUpperCase()} · ${timeAgo(r.created_at)}</div>
+            </div>
+            <span class="badge ${statusBadge(r.status)}">${r.status}</span>
+          </div>
+          ${r.description ? `<div style="font-size:12px;color:#6b7280;margin-top:6px;line-height:1.5;">${r.description.substring(0,100)}${r.description.length > 100 ? '...' : ''}</div>` : ''}
+          <div class="report-card-bottom" style="margin-top:8px;">
+            <div class="report-card-meta">📍 ${r.location || 'Lagos, Nigeria'}</div>
+            <span class="badge ${sevBadge(r.severity)}">${r.severity}</span>
+          </div>
+          ${r.ai_confidence ? `<div style="font-size:11px;color:#2d9e5f;margin-top:6px;font-weight:500;">🤖 AI confidence: ${r.ai_confidence}%</div>` : ''}
+        </div>
+      `).join('');
+    } catch(e) {
+      document.getElementById('myReportsList').innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load reports. Please try again.</p></div>';
+    }
+  }
+  loadMyReports();
+</script>
+</body>
+</html>

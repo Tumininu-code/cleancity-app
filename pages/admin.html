@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>CleanCity — Admin</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"/>
+</head>
+<body style="background:#f0f4ee;">
+<div class="screen active" style="flex-direction:column;">
+
+  <div class="status-bar" style="background:#0a3019;"><span>9:41</span><span>Admin Panel</span><span>&#9679; Secure</span></div>
+
+  <div class="admin-header">
+    <div>
+      <h2>Admin Panel</h2>
+      <p>Lagos State · LAWMA · <span id="adminName">—</span></p>
+    </div>
+    <div class="live-pill"><div class="live-dot"></div>Live</div>
+  </div>
+
+  <div class="page-body" style="flex:1;">
+
+    <div>
+      <div class="section-label">Overview</div>
+      <div class="stats-grid-2">
+        <div class="stat-card"><div class="stat-num" id="adminTotal">--</div><div class="stat-label">Total Reports</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#e24b4a;" id="adminUrgent">--</div><div class="stat-label">High Priority</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#ef9f27;" id="adminPending">--</div><div class="stat-label">Pending</div></div>
+        <div class="stat-card"><div class="stat-num" style="color:#2d9e5f;" id="adminResolved">--</div><div class="stat-label">Resolved</div></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Filter Reports</div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="filterReports('all', this)">All</button>
+        <button class="filter-btn" onclick="filterReports('Pending', this)">Pending</button>
+        <button class="filter-btn" onclick="filterReports('In Progress', this)">In Progress</button>
+        <button class="filter-btn" onclick="filterReports('Resolved', this)">Resolved</button>
+        <button class="filter-btn" onclick="filterReports('High', this)">🔴 High</button>
+      </div>
+    </div>
+
+    <div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div class="section-label" style="margin-bottom:0;">Reports</div>
+        <button onclick="loadAdminReports()" style="font-size:12px;color:#1a6b3c;background:none;border:none;cursor:pointer;font-weight:600;">↻ Refresh</button>
+      </div>
+      <div id="adminReportList">
+        <div class="empty-state"><div class="empty-icon">⏳</div><p>Loading reports...</p></div>
+      </div>
+    </div>
+
+    <button class="btn-green" style="background:#0a3019;" onclick="signOut()">Sign Out</button>
+
+  </div>
+
+</div>
+
+<script src="../js/supabase.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  if (!requireAdmin()) {}
+
+  document.getElementById('adminName').textContent = getUserName();
+
+  var allReports = [];
+  var currentFilter = 'all';
+
+  async function loadAdminReports() {
+    const token = getToken();
+    try {
+      allReports = await supabase.getReports(token);
+
+      const total = allReports.length;
+      const urgent = allReports.filter(r => r.severity === 'High' && r.status !== 'Resolved').length;
+      const pending = allReports.filter(r => r.status === 'Pending').length;
+      const resolved = allReports.filter(r => r.status === 'Resolved').length;
+
+      document.getElementById('adminTotal').textContent = total;
+      document.getElementById('adminUrgent').textContent = urgent;
+      document.getElementById('adminPending').textContent = pending;
+      document.getElementById('adminResolved').textContent = resolved;
+
+      renderReports();
+    } catch(e) {
+      document.getElementById('adminReportList').innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load reports. Check connection.</p></div>';
+    }
+  }
+
+  function filterReports(filter, btn) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderReports();
+  }
+
+  function renderReports() {
+    let filtered = allReports;
+    if (currentFilter !== 'all') {
+      if (['Pending', 'In Progress', 'Resolved'].includes(currentFilter)) {
+        filtered = allReports.filter(r => r.status === currentFilter);
+      } else if (currentFilter === 'High') {
+        filtered = allReports.filter(r => r.severity === 'High');
+      }
+    }
+
+    if (filtered.length === 0) {
+      document.getElementById('adminReportList').innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>No reports in this category.</p></div>';
+      return;
+    }
+
+    document.getElementById('adminReportList').innerHTML = filtered.map(r => `
+      <div class="report-card" id="card-${r.id}">
+        <div class="report-card-top">
+          <div style="flex:1;">
+            <div class="report-card-title">${r.category}</div>
+            <div class="report-card-id">${r.id.substring(0,8).toUpperCase()} · ${timeAgo(r.created_at)}</div>
+          </div>
+          <span class="badge ${statusBadge(r.status)}">${r.status}</span>
+        </div>
+        ${r.description ? `<div style="font-size:12px;color:#374151;margin-top:8px;line-height:1.5;background:#f9fafb;border-radius:8px;padding:8px 10px;">${r.description.substring(0,150)}${r.description.length > 150 ? '...' : ''}</div>` : ''}
+        <div class="report-card-bottom" style="margin-top:8px;">
+          <div class="report-card-meta">📍 ${r.location || 'Lagos, Nigeria'}</div>
+          <span class="badge ${sevBadge(r.severity)}">${r.severity}</span>
+        </div>
+        ${r.ai_confidence ? `<div style="font-size:11px;color:#2d9e5f;margin-top:6px;font-weight:500;">🤖 AI: ${r.ai_confidence}% confidence</div>` : ''}
+        ${r.status !== 'Resolved' ? `
+        <div class="report-card-actions">
+          <button class="btn-advance" onclick="advanceStatus('${r.id}', '${r.status}', this)">
+            Mark as ${nextStatus(r.status)}
+          </button>
+        </div>` : `<div style="font-size:12px;color:#2d9e5f;margin-top:8px;font-weight:600;">✅ Issue Resolved</div>`}
+      </div>
+    `).join('');
+  }
+
+  async function advanceStatus(reportId, currentStatus, btn) {
+    const token = getToken();
+    const newStatus = nextStatus(currentStatus);
+    btn.textContent = 'Updating...';
+    btn.disabled = true;
+    try {
+      await supabase.updateReportStatus(reportId, newStatus, token);
+      showToast(`Report marked as ${newStatus}`);
+      await loadAdminReports();
+    } catch(e) {
+      showToast('Error updating status');
+      btn.disabled = false;
+      btn.textContent = `Mark as ${newStatus}`;
+    }
+  }
+
+  loadAdminReports();
+</script>
+</body>
+</html>

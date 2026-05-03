@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>CleanCity — AI Waste Reporting</title>
+  <meta name="theme-color" content="#0f4d2a"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash" class="screen splash active">
+  <div class="splash-bg"></div>
+  <div class="splash-content">
+    <div class="splash-logo">
+      <div class="logo-ring"><span>🌿</span></div>
+      <h1>CleanCity</h1>
+      <p class="logo-tagline">AI POWERED · NIGERIA</p>
+    </div>
+    <div class="splash-text">
+      <p>Report waste and environmental issues in your community. Together we build a cleaner Nigeria.</p>
+    </div>
+    <div class="splash-actions">
+      <button class="btn-primary" onclick="showScreen('register')">Get Started</button>
+      <button class="btn-ghost" onclick="showScreen('login')">Sign In</button>
+    </div>
+    <p class="splash-footer">MIVA Open University · Final Year Project 2026</p>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="login" class="screen login">
+  <div class="auth-header">
+    <button class="back-btn" onclick="showScreen('splash')">←</button>
+    <div class="auth-header-text">
+      <h2>Welcome back</h2>
+      <p>Sign in to continue</p>
+    </div>
+  </div>
+  <div class="auth-body">
+    <div id="loginError" class="error-msg" style="display:none;"></div>
+    <div class="field-group">
+      <label>Email address</label>
+      <input id="loginEmail" type="email" placeholder="you@example.com" class="field-input"/>
+    </div>
+    <div class="field-group">
+      <label>Password</label>
+      <input id="loginPassword" type="password" placeholder="••••••••" class="field-input"/>
+    </div>
+    <button class="btn-primary" onclick="handleLogin()">
+      <span id="loginBtnText">Sign In</span>
+    </button>
+    <p class="auth-switch">Don't have an account? <a onclick="showScreen('register')">Register</a></p>
+    <div class="divider"><span>or</span></div>
+    <button class="btn-admin" onclick="handleAdminLogin()">Sign in as Admin</button>
+  </div>
+</div>
+
+<!-- REGISTER -->
+<div id="register" class="screen login">
+  <div class="auth-header">
+    <button class="back-btn" onclick="showScreen('splash')">←</button>
+    <div class="auth-header-text">
+      <h2>Create account</h2>
+      <p>Join CleanCity today</p>
+    </div>
+  </div>
+  <div class="auth-body">
+    <div id="registerError" class="error-msg" style="display:none;"></div>
+    <div class="field-group">
+      <label>Full Name</label>
+      <input id="registerName" type="text" placeholder="Your full name" class="field-input"/>
+    </div>
+    <div class="field-group">
+      <label>Email address</label>
+      <input id="registerEmail" type="email" placeholder="you@example.com" class="field-input"/>
+    </div>
+    <div class="field-group">
+      <label>Password</label>
+      <input id="registerPassword" type="password" placeholder="Min 6 characters" class="field-input"/>
+    </div>
+    <button class="btn-primary" onclick="handleRegister()">
+      <span id="registerBtnText">Create Account</span>
+    </button>
+    <p class="auth-switch">Already have an account? <a onclick="showScreen('login')">Sign In</a></p>
+  </div>
+</div>
+
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

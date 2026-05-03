@@ -1,0 +1,46 @@
+<!-- SUCCESS PAGE -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CleanCity — Submitted</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<div class="success-page">
+  <div class="success-circle">✓</div>
+  <div class="success-title">Report Submitted!</div>
+  <div class="success-sub">Your report has been received and forwarded to Lagos State Waste Management Authority (LAWMA) for immediate action.</div>
+  <div class="report-id-badge" id="reportIdEl">Report ID: Loading...</div>
+  <div class="ai-result-card">
+    <div class="ai-result-label">AI Classification</div>
+    <div class="ai-result-value" id="resultCategory">—</div>
+    <div class="ai-result-conf" id="resultConf">—</div>
+    <div class="ai-result-desc" id="resultDesc">—</div>
+  </div>
+  <div style="background:#fff;border-radius:14px;padding:16px 18px;width:100%;border:1px solid #e5e9e2;">
+    <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;font-weight:700;">What happens next</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;gap:10px;font-size:13px;color:#1a1a1a;"><span style="color:#1a6b3c;font-weight:700;">1.</span>LAWMA receives and reviews your report</div>
+      <div style="display:flex;gap:10px;font-size:13px;color:#1a1a1a;"><span style="color:#1a6b3c;font-weight:700;">2.</span>A field team is dispatched to the location</div>
+      <div style="display:flex;gap:10px;font-size:13px;color:#1a1a1a;"><span style="color:#1a6b3c;font-weight:700;">3.</span>You'll be notified when the issue is resolved</div>
+    </div>
+  </div>
+  <button class="btn-green" onclick="window.location.href='home.html'" style="border-radius:14px;">Back to Home</button>
+  <p class="link-text" onclick="window.location.href='report.html'" style="font-size:13px;color:#1a6b3c;cursor:pointer;">Submit another report</p>
+</div>
+<script src="../js/app.js"></script>
+<script>
+  var r = window._pendingReport;
+  if (r) {
+    var shortId = r.id ? 'CC-' + r.id.substring(0,8).toUpperCase() : 'CC-2026-' + Math.floor(Math.random()*9000+1000);
+    document.getElementById('reportIdEl').textContent = 'Report ID: ' + shortId;
+    document.getElementById('resultCategory').textContent = r.category || '—';
+    document.getElementById('resultConf').textContent = (r.confidence || r.ai_confidence || '—') + '% confidence · Priority: ' + (r.severity || '—');
+    document.getElementById('resultDesc').textContent = r.description || '';
+  }
+</script>
+</body>
+</html>

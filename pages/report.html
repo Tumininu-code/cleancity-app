@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>CleanCity — Report Issue</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+</head>
+<body style="background:#f5f7f2;">
+<div class="screen active" style="flex-direction:column;">
+
+  <div class="status-bar"><span>9:41</span><span>New Report</span><span>&#9679;&#9679;&#9679;</span></div>
+
+  <div class="page-header-row">
+    <a href="home.html" class="header-back">&#8592;</a>
+    <div>
+      <h2>New Report</h2>
+      <p>AI writes your report automatically</p>
+    </div>
+  </div>
+
+  <div class="page-body" style="flex:1;">
+
+    <!-- Photo Upload -->
+    <div>
+      <div class="section-label">Photo Evidence <span style="color:#e24b4a;">*</span></div>
+      <div class="upload-box" id="uploadBox" onclick="triggerUpload()">
+        <img id="imagePreview" src="" style="display:none;"/>
+        <div id="uploadPlaceholder" style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          <div style="font-size:36px;">📷</div>
+          <div style="font-size:14px;color:#1a6b3c;font-weight:600;">Take or upload a photo</div>
+          <div style="font-size:12px;color:#6b7280;">AI will write your full report instantly</div>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" capture="environment" style="display:none;" onchange="handlePhotoUpload(event)"/>
+    </div>
+
+    <!-- AI Status -->
+    <div class="ai-badge" id="aiBadge">
+      <div class="ai-dot" id="aiDot"></div>
+      <span id="aiStatusText">Upload a photo — AI will classify and write your report automatically</span>
+    </div>
+
+    <!-- AI Generated Report (hidden until AI fills it) -->
+    <div id="aiGeneratedSection" style="display:none;">
+      <div style="background:#fff;border:1.5px solid #2d9e5f;border-radius:14px;padding:16px;margin-bottom:4px;">
+        <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;font-weight:700;">✨ AI Generated Report</div>
+        <div style="font-size:16px;font-weight:700;color:#1a6b3c;font-family:'Space Grotesk',sans-serif;" id="aiTitle">—</div>
+        <div style="font-size:13px;color:#374151;margin-top:8px;line-height:1.6;" id="aiDescription">—</div>
+        <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="badge" id="aiCategoryBadge" style="background:#e8f3e0;color:#1a6b3c;">—</span>
+          <span class="badge" id="aiSeverityBadge">—</span>
+          <span style="font-size:11px;color:#6b7280;padding:4px 8px;">AI confidence: <strong id="aiConfidence">—</strong></span>
+        </div>
+        <div style="margin-top:10px;background:#f9fafb;border-radius:8px;padding:10px 12px;">
+          <div style="font-size:11px;color:#6b7280;font-weight:600;margin-bottom:3px;">RECOMMENDED ACTION</div>
+          <div style="font-size:12px;color:#374151;" id="aiAction">—</div>
+        </div>
+      </div>
+      <button class="btn-outline-green" onclick="toggleManualEdit()" style="font-size:13px;padding:10px;">✏️ Edit report manually</button>
+    </div>
+
+    <!-- Manual Fields (shown by default if no photo, or when editing) -->
+    <div id="manualFields">
+      <div class="field-group">
+        <label>Issue Category</label>
+        <select class="select-field" id="categorySelect">
+          <option value="">Select category</option>
+          <option value="Illegal Dumping">Illegal Dumping</option>
+          <option value="Waste Pileup">Waste Pileup</option>
+          <option value="Blocked Drainage">Blocked Drainage</option>
+          <option value="Flooding">Flooding</option>
+          <option value="Environmental Pollution">Environmental Pollution</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Description</label>
+        <textarea class="textarea-field" id="descriptionField" placeholder="Describe the issue..."></textarea>
+      </div>
+      <div class="field-group">
+        <label>Severity</label>
+        <div class="severity-row">
+          <div class="sev-btn sev-low" onclick="selectSeverity('Low',this)">Low</div>
+          <div class="sev-btn sev-medium selected" onclick="selectSeverity('Medium',this)">Medium</div>
+          <div class="sev-btn sev-high" onclick="selectSeverity('High',this)">High</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Location -->
+    <div class="field-group">
+      <label>Location (GPS)</label>
+      <div class="loc-row">
+        <div class="loc-dot"></div>
+        <div style="font-size:13px;color:#6b7280;" id="locationDisplay">Detecting your location...</div>
+      </div>
+    </div>
+
+    <button class="btn-green" onclick="submitReport()" id="submitBtn">Submit Report</button>
+    <div style="height:20px;"></div>
+
+  </div>
+
+</div>
+
+<script src="../js/supabase.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  if (!requireAuth()) {}
+
+  var selectedSeverity = 'Medium';
+  var currentLocation = null;
+  var aiResult = null;
+  var uploadedFile = null;
+  var manualEditMode = false;
+
+  // Get location on load
+  getCurrentLocation().then(loc => {
+    currentLocation = loc;
+    localStorage.setItem('cc_last_location', `${loc.lat}, ${loc.lng} - Lagos, Nigeria`);
+    document.getElementById('locationDisplay').textContent = '📍 Lagos, Nigeria · GPS captured';
+  });
+
+  function triggerUpload() {
+    document.getElementById('fileInput').click();
+  }
+
+  async function handlePhotoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    uploadedFile = file;
+
+    // Show preview
+    const preview = document.getElementById('imagePreview');
+    const placeholder = document.getElementById('uploadPlaceholder');
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+    placeholder.style.display = 'none';
+
+    // Hide manual fields, show AI working
+    document.getElementById('manualFields').style.display = 'none';
+    document.getElementById('aiGeneratedSection').style.display = 'none';
+
+    // Update AI badge
+    const dot = document.getElementById('aiDot');
+    const text = document.getElementById('aiStatusText');
+    dot.className = 'ai-dot thinking';
+    text.textContent = '🤖 AI is analyzing your photo and writing the report...';
+
+    try {
+      aiResult = await analyzeImageWithAI(file);
+
+      // Fill AI section
+      document.getElementById('aiTitle').textContent = aiResult.title || aiResult.category;
+      document.getElementById('aiDescription').textContent = aiResult.description;
+      document.getElementById('aiCategoryBadge').textContent = aiResult.category;
+      document.getElementById('aiConfidence').textContent = aiResult.confidence + '%';
+
+      const sevBadgeEl = document.getElementById('aiSeverityBadge');
+      sevBadgeEl.textContent = aiResult.severity;
+      sevBadgeEl.className = 'badge ' + sevBadge(aiResult.severity);
+
+      document.getElementById('aiAction').textContent = aiResult.recommended_action || 'Contact LAWMA for immediate cleanup.';
+
+      // Auto-fill manual fields too (for fallback)
+      document.getElementById('categorySelect').value = aiResult.category;
+      document.getElementById('descriptionField').value = aiResult.description;
+      selectSeverityByValue(aiResult.severity);
+
+      // Show AI section
+      document.getElementById('aiGeneratedSection').style.display = 'block';
+
+      dot.className = 'ai-dot done';
+      text.textContent = `✅ AI classified as "${aiResult.category}" (${aiResult.confidence}% confidence)`;
+
+    } catch(err) {
+      console.error('AI error:', err);
+      dot.className = 'ai-dot';
+      text.textContent = '⚠️ AI unavailable — please fill in manually';
+      document.getElementById('manualFields').style.display = 'flex';
+      document.getElementById('manualFields').style.flexDirection = 'column';
+      document.getElementById('manualFields').style.gap = '14px';
+    }
+  }
+
+  function toggleManualEdit() {
+    manualEditMode = !manualEditMode;
+    document.getElementById('manualFields').style.display = manualEditMode ? 'flex' : 'none';
+    if (manualEditMode) {
+      document.getElementById('manualFields').style.flexDirection = 'column';
+      document.getElementById('manualFields').style.gap = '14px';
+    }
+  }
+
+  function selectSeverity(val, el) {
+    selectedSeverity = val;
+    document.querySelectorAll('.sev-btn').forEach(b => b.classList.remove('selected'));
+    el.classList.add('selected');
+  }
+
+  function selectSeverityByValue(val) {
+    selectedSeverity = val;
+    document.querySelectorAll('.sev-btn').forEach(b => {
+      b.classList.remove('selected');
+      if (b.textContent === val) b.classList.add('selected');
+    });
+  }
+
+  async function submitReport() {
+    const token = getToken();
+    const userId = getUserId();
+    const btn = document.getElementById('submitBtn');
+
+    // Use AI result or manual fields
+    const category = aiResult ? aiResult.category : document.getElementById('categorySelect').value;
+    const description = aiResult ? aiResult.description : document.getElementById('descriptionField').value;
+    const severity = aiResult ? aiResult.severity : selectedSeverity;
+
+    if (!category) { showToast('Please select a category or upload a photo'); return; }
+    if (!description) { showToast('Please add a description'); return; }
+
+    btn.innerHTML = '<span class="spinner"></span> Submitting...';
+    btn.disabled = true;
+
+    try {
+      // Upload image if available
+      let imageUrl = null;
+      if (uploadedFile) {
+        imageUrl = await supabase.uploadImage(uploadedFile, token);
+      }
+
+      const report = {
+        user_id: userId,
+        category,
+        description,
+        severity,
+        location: 'Lagos, Nigeria',
+        latitude: currentLocation ? currentLocation.lat : 6.5244,
+        longitude: currentLocation ? currentLocation.lng : 3.3792,
+        status: 'Pending',
+        image_url: imageUrl,
+        ai_confidence: aiResult ? aiResult.confidence : null
+      };
+
+      const saved = await supabase.insertReport(report, token);
+      window._pendingReport = { ...report, id: saved ? saved.id : generateReportId(), confidence: aiResult ? aiResult.confidence : 'N/A' };
+      window.location.href = 'success.html';
+
+    } catch(err) {
+      showToast('Error submitting report. Please try again.');
+      btn.textContent = 'Submit Report';
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>

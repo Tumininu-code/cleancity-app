@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>CleanCity — Map</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"/>
+  <style>
+    #fullMap { width:100%; height:320px; border-radius:0; }
+    .map-legend { display:flex; gap:10px; flex-wrap:wrap; }
+    .legend-item { display:flex; align-items:center; gap:5px; font-size:12px; color:#6b7280; font-weight:500; }
+    .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+  </style>
+</head>
+<body style="background:#f0f4ee;">
+<div class="screen active" style="flex-direction:column;">
+
+  <div class="status-bar"><span>9:41</span><span>Hotspot Map</span><span>&#9679;&#9679;&#9679;</span></div>
+
+  <div class="page-header-row">
+    <a href="home.html" class="header-back">&#8592;</a>
+    <div><h2>Hotspot Map</h2><p id="mapSubtitle">Lagos State · Live data</p></div>
+  </div>
+
+  <div id="fullMap" style="background:#d4e8cc;display:flex;align-items:center;justify-content:center;font-size:13px;color:#1a6b3c;font-weight:500;">
+    Loading map...
+  </div>
+
+  <div class="page-body" style="flex:1;">
+
+    <div class="map-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#e24b4a;"></div>High severity</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ef9f27;"></div>Medium severity</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#2d9e5f;"></div>Low / Resolved</div>
+    </div>
+
+    <div>
+      <div class="section-label">All Active Reports</div>
+      <div id="mapReportList">
+        <div class="empty-state"><div class="empty-icon">🗺️</div><p>Loading reports...</p></div>
+      </div>
+    </div>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="home.html" class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">Home</div></a>
+    <a href="report.html" class="nav-item"><div class="nav-icon">📸</div><div class="nav-label">Report</div></a>
+    <a href="map.html" class="nav-item active"><div class="nav-icon">🗺️</div><div class="nav-label">Map</div></a>
+    <a href="profile.html" class="nav-item"><div class="nav-icon">👤</div><div class="nav-label">Profile</div></a>
+  </nav>
+
+</div>
+
+<script src="../js/supabase.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  if (!requireAuth()) {}
+
+  var map;
+  var allReports = [];
+
+  function initMap() {
+    getCurrentLocation().then(loc => {
+      if (typeof google === 'undefined') {
+        document.getElementById('fullMap').textContent = 'Map unavailable — Google Maps API key required';
+        return;
+      }
+      map = new google.maps.Map(document.getElementById('fullMap'), {
+        center: { lat: loc.lat, lng: loc.lng },
+        zoom: 12,
+        styles: [{ featureType: 'poi', stylers: [{ visibility: 'off' }] }]
+      });
+      loadAndPlotReports(loc);
+    });
+  }
+
+  async function loadAndPlotReports(loc) {
+    const token = getToken();
+    try {
+      allReports = await supabase.getReports(token);
+      document.getElementById('mapSubtitle').textContent = `Lagos State · ${allReports.length} reports`;
+
+      if (allReports.length === 0) {
+        document.getElementById('mapReportList').innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>No active reports. Keep it clean!</p></div>';
+        return;
+      }
+
+      // Plot markers
+      if (map) {
+        const colors = { 'High': '#e24b4a', 'Medium': '#ef9f27', 'Low': '#2d9e5f', 'Resolved': '#2d9e5f' };
+        allReports.forEach(r => {
+          const lat = r.latitude || (loc.lat + (Math.random() - 0.5) * 0.05);
+          const lng = r.longitude || (loc.lng + (Math.random() - 0.5) * 0.05);
+          const marker = new google.maps.Marker({
+            position: { lat, lng },
+            map,
+            title: r.category,
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              fillColor: colors[r.severity] || '#ef9f27',
+              fillOpacity: 0.9,
+              strokeColor: '#fff',
+              strokeWeight: 2,
+              scale: 9
+            }
+          });
+          const infoWindow = new google.maps.InfoWindow({
+            content: `<div style="font-family:sans-serif;padding:4px;"><strong>${r.category}</strong><br/>${r.location || 'Lagos'}<br/><span style="color:${colors[r.severity]}">${r.severity}</span> · ${r.status}</div>`
+          });
+          marker.addListener('click', () => infoWindow.open(map, marker));
+        });
+      }
+
+      // List
+      document.getElementById('mapReportList').innerHTML = allReports.map(r => `
+        <div class="report-card">
+          <div class="report-card-top">
+            <div>
+              <div class="report-card-title">${r.category}</div>
+              <div class="report-card-id">${timeAgo(r.created_at)}</div>
+            </div>
+            <span class="badge ${statusBadge(r.status)}">${r.status}</span>
+          </div>
+          <div class="report-card-bottom" style="margin-top:6px;">
+            <div class="report-card-meta">📍 ${r.location || 'Lagos, Nigeria'}</div>
+            <span class="badge ${sevBadge(r.severity)}">${r.severity}</span>
+          </div>
+        </div>
+      `).join('');
+    } catch(e) {
+      document.getElementById('mapReportList').innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load reports.</p></div>';
+    }
+  }
+
+  initMap();
+</script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD-placeholder&callback=Function.prototype"></script>
+</body>
+</html>

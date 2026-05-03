@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>CleanCity — Profile</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"/>
+</head>
+<body style="background:#f0f4ee;">
+<div class="screen active" style="flex-direction:column;">
+
+  <div class="status-bar"><span>9:41</span><span>Profile</span><span>&#9679;&#9679;&#9679;</span></div>
+
+  <div style="background:#0f4d2a;padding:36px 20px 28px;display:flex;flex-direction:column;align-items:center;gap:10px;color:#fff;">
+    <div style="width:76px;height:76px;border-radius:50%;background:#2d9e5f;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-size:26px;font-weight:700;border:2.5px solid rgba(255,255,255,0.3);" id="avatarInitials">?</div>
+    <div style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;" id="profileName">Loading...</div>
+    <div style="font-size:12px;opacity:0.7;" id="profileEmail">—</div>
+    <div style="background:rgba(45,158,95,0.25);border:1px solid rgba(45,158,95,0.4);border-radius:20px;padding:5px 16px;font-size:12px;font-weight:600;color:#6fcf97;">⭐ Citizen Reporter</div>
+  </div>
+
+  <div class="page-body" style="flex:1;">
+
+    <div class="stats-grid-3">
+      <div class="stat-card"><div class="stat-num" id="profileTotal">--</div><div class="stat-label">Reports</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:#2d9e5f;" id="profileResolved">--</div><div class="stat-label">Resolved</div></div>
+      <div class="stat-card"><div class="stat-num" style="color:#ef9f27;" id="profilePending">--</div><div class="stat-label">Pending</div></div>
+    </div>
+
+    <div>
+      <div class="section-label">Account</div>
+      <div style="background:#fff;border-radius:14px;border:1px solid #e5e9e2;overflow:hidden;">
+        <div style="padding:14px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #e5e9e2;">
+          <span style="font-size:13px;color:#6b7280;font-weight:500;">Full Name</span>
+          <span style="font-size:13px;color:#1a1a1a;font-weight:500;" id="detailName">—</span>
+        </div>
+        <div style="padding:14px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #e5e9e2;">
+          <span style="font-size:13px;color:#6b7280;font-weight:500;">Email</span>
+          <span style="font-size:13px;color:#1a1a1a;" id="detailEmail">—</span>
+        </div>
+        <div style="padding:14px 16px;display:flex;justify-content:space-between;border-bottom:1px solid #e5e9e2;">
+          <span style="font-size:13px;color:#6b7280;font-weight:500;">Role</span>
+          <span style="font-size:13px;color:#1a6b3c;font-weight:600;" id="detailRole">Citizen</span>
+        </div>
+        <div style="padding:14px 16px;display:flex;justify-content:space-between;">
+          <span style="font-size:13px;color:#6b7280;font-weight:500;">Project</span>
+          <span style="font-size:13px;color:#1a1a1a;">MIVA Open University · 2026</span>
+        </div>
+      </div>
+    </div>
+
+    <a href="my-reports.html" class="btn-outline-green" style="text-decoration:none;display:block;text-align:center;padding:13px;">View My Reports</a>
+    <button class="btn-green" style="background:#0f4d2a;" onclick="signOut()">Sign Out</button>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <a href="home.html" class="nav-item"><div class="nav-icon">🏠</div><div class="nav-label">Home</div></a>
+    <a href="report.html" class="nav-item"><div class="nav-icon">📸</div><div class="nav-label">Report</div></a>
+    <a href="map.html" class="nav-item"><div class="nav-icon">🗺️</div><div class="nav-label">Map</div></a>
+    <a href="profile.html" class="nav-item active"><div class="nav-icon">👤</div><div class="nav-label">Profile</div></a>
+  </nav>
+
+</div>
+
+<script src="../js/supabase.js"></script>
+<script src="../js/auth.js"></script>
+<script src="../js/app.js"></script>
+<script>
+  if (!requireAuth()) {}
+
+  const name = getUserName();
+  const email = localStorage.getItem('cc_email') || '—';
+  const role = getUserRole();
+
+  document.getElementById('profileName').textContent = name;
+  document.getElementById('profileEmail').textContent = email;
+  document.getElementById('detailName').textContent = name;
+  document.getElementById('detailEmail').textContent = email;
+  document.getElementById('detailRole').textContent = role === 'admin' ? 'Administrator' : 'Citizen';
+  document.getElementById('avatarInitials').textContent = name.split(' ').map(w => w[0]).join('').substring(0,2).toUpperCase();
+
+  async function loadStats() {
+    const token = getToken();
+    const userId = getUserId();
+    try {
+      const reports = await supabase.getMyReports(userId, token);
+      document.getElementById('profileTotal').textContent = reports.length;
+      document.getElementById('profileResolved').textContent = reports.filter(r => r.status === 'Resolved').length;
+      document.getElementById('profilePending').textContent = reports.filter(r => r.status === 'Pending').length;
+    } catch(e) {}
+  }
+  loadStats();
+</script>
+</body>
+</html>
