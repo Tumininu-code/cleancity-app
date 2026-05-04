@@ -3,8 +3,7 @@
 // Student: Olumutimi Jesutumininu | MIVA Open University 2026
 
 const GEMINI_API_KEY = 'AIzaSyC8rKUlWEctuY7E6KbyCSIp-L5qcJ-6jaA';
-const GEMINI_API = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
-
+const GEMINI_API = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`;
 function generateReportId() {
   const num = String(Math.floor(Math.random() * 9000) + 1000);
   return `CC-2026-${num}`;
