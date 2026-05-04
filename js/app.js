@@ -1,9 +1,9 @@
 // CleanCity — Core App Logic
-// AI Classification via Google Gemini API (Free)
+// AI Classification via CleanCity Backend Server (Secure)
 // Student: Olumutimi Jesutumininu | MIVA Open University 2026
 
-const GEMINI_API_KEY = 'AIzaSyC8rKUlWEctuY7E6KbyCSIp-L5qcJ-6jaA';
-const GEMINI_API = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent?key=${GEMINI_API_KEY}`;
+const BACKEND_URL = 'https://cleancity-server.onrender.com';
+
 function generateReportId() {
   const num = String(Math.floor(Math.random() * 9000) + 1000);
   return `CC-2026-${num}`;
@@ -23,46 +23,27 @@ function getMediaType(file) {
   return types[file.type] || 'image/jpeg';
 }
 
+// AI: Analyze image via secure backend server
 async function analyzeImageWithAI(file) {
   const base64 = await fileToBase64(file);
   const mediaType = getMediaType(file);
   const locationText = localStorage.getItem('cc_last_location') || 'Lagos, Nigeria';
 
-  const response = await fetch(GEMINI_API, {
+  const response = await fetch(`${BACKEND_URL}/classify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{
-        parts: [
-          { inline_data: { mime_type: mediaType, data: base64 } },
-          { text: `You are CleanCity's AI waste classification system for Nigerian urban areas.
-
-Analyze this image and generate a complete environmental incident report.
-
-Respond ONLY with a valid JSON object, no other text, no markdown, no backticks:
-{
-  "category": "one of: Illegal Dumping, Waste Pileup, Blocked Drainage, Flooding, Environmental Pollution, Other",
-  "confidence": number between 60-99,
-  "severity": "Low, Medium, or High",
-  "title": "short 4-6 word title describing the issue",
-  "description": "2-3 sentence professional description of what you see, written as an official environmental incident report",
-  "recommended_action": "specific action LAWMA or authorities should take",
-  "estimated_cleanup_time": "e.g. 2-4 hours, 1 day, etc",
-  "location_context": "brief description of the environment visible in image"
-}
-
-Location context: ${locationText}
-Be specific, professional, and accurate.` }
-        ]
-      }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 1000 }
+      imageBase64: base64,
+      mimeType: mediaType,
+      location: locationText
     })
   });
 
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  const clean = text.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
+  if (!response.ok) {
+    throw new Error(`Server error: ${response.status}`);
+  }
+
+  return await response.json();
 }
 
 function getCurrentLocation() {
@@ -72,7 +53,11 @@ function getCurrentLocation() {
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, text: `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}` }),
+      (pos) => resolve({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        text: `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}`
+      }),
       () => resolve({ lat: 6.5244, lng: 3.3792, text: 'Lagos, Nigeria' }),
       { timeout: 8000 }
     );
