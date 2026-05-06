@@ -99,12 +99,12 @@
 <script src="../js/auth.js"></script>
 <script src="../js/app.js"></script>
 <script>
-  if (!requireAuth()) { /* redirected */ }
+  if (!requireAuth()) {}
 
-  // Set greeting
+  const BACKEND = 'https://cleancity-server.onrender.com';
+
   document.getElementById('greetName').textContent = getUserName() + ' 👋';
 
-  // Clock
   function updateClock() {
     const now = new Date();
     document.getElementById('statusTime').textContent = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
@@ -112,34 +112,103 @@
   updateClock();
   setInterval(updateClock, 60000);
 
-  // Get location
-  getCurrentLocation().then(loc => {
-    localStorage.setItem('cc_last_location', loc.text);
-    document.getElementById('locationText').textContent = 'Lagos, Nigeria · Live reports active';
-    initMap(loc.lat, loc.lng);
+  var userLat = 6.5244;
+  var userLng = 3.3792;
+  var userAddress = 'Lagos, Nigeria';
+
+  // Get location then load map
+  getCurrentLocation().then(async loc => {
+    userLat = loc.lat;
+    userLng = loc.lng;
+
+    // Get real address from server
+    try {
+      const geoRes = await fetch(`${BACKEND}/geocode?lat=${loc.lat}&lng=${loc.lng}`);
+      const geoData = await geoRes.json();
+      userAddress = geoData.address || 'Lagos, Nigeria';
+    } catch(e) {
+      userAddress = 'Lagos, Nigeria';
+    }
+
+    localStorage.setItem('cc_last_location', userAddress);
+    document.getElementById('locationText').textContent = userAddress + ' · Live';
+
+    // Load Maps key from server then init map
+    try {
+      const keyRes = await fetch(`${BACKEND}/maps-key`);
+      const keyData = await keyRes.json();
+      if (keyData.key) {
+        loadGoogleMaps(keyData.key);
+      }
+    } catch(e) {
+      console.log('Maps key unavailable');
+      showMapFallback();
+    }
   });
 
-  // Init map
-  function initMap(lat, lng) {
-    if (typeof google === 'undefined') return;
+  function loadGoogleMaps(apiKey) {
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+  }
+
+  window.initMap = function() {
     const map = new google.maps.Map(document.getElementById('homeMap'), {
-      center: { lat, lng },
-      zoom: 12,
+      center: { lat: userLat, lng: userLng },
+      zoom: 13,
       disableDefaultUI: true,
       styles: [{ featureType: 'poi', stylers: [{ visibility: 'off' }] }]
     });
-    // Demo markers
-    const spots = [
-      { lat: lat + 0.01, lng: lng + 0.01, type: 'Illegal Dumping' },
-      { lat: lat - 0.01, lng: lng + 0.02, type: 'Flooding' },
-      { lat: lat + 0.02, lng: lng - 0.01, type: 'Waste Pileup' },
-    ];
-    spots.forEach(s => {
-      new google.maps.Marker({ position: { lat: s.lat, lng: s.lng }, map, title: s.type });
+
+    // Plot real reports
+    supabase.getReports(getToken()).then(reports => {
+      reports.forEach(r => {
+        if (r.latitude && r.longitude) {
+          const colors = { 'High': '#e24b4a', 'Medium': '#ef9f27', 'Low': '#2d9e5f' };
+          new google.maps.Marker({
+            position: { lat: r.latitude, lng: r.longitude },
+            map,
+            title: r.category,
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              fillColor: colors[r.severity] || '#ef9f27',
+              fillOpacity: 0.9,
+              strokeColor: '#fff',
+              strokeWeight: 2,
+              scale: 9
+            }
+          });
+        }
+      });
+    }).catch(() => {});
+
+    // User location marker
+    new google.maps.Marker({
+      position: { lat: userLat, lng: userLng },
+      map,
+      title: 'Your location',
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: '#3b82f6',
+        fillOpacity: 1,
+        strokeColor: '#fff',
+        strokeWeight: 3,
+        scale: 8
+      }
     });
+  };
+
+  function showMapFallback() {
+    document.getElementById('homeMap').innerHTML = `
+      <div style="width:100%;height:100%;border-radius:14px;background:#d4e8cc;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;">
+        <div style="font-size:28px;">🗺️</div>
+        <div style="font-size:13px;font-weight:600;color:#1a6b3c;">Live Map View</div>
+        <div style="font-size:11px;color:#6b7280;">${userAddress}</div>
+      </div>`;
   }
 
-  // Load reports
   async function loadReports() {
     const token = getToken();
     try {
@@ -151,7 +220,7 @@
       document.getElementById('totalCount').textContent = total;
       document.getElementById('pendingCount').textContent = pending;
       document.getElementById('resolvedCount').textContent = resolved;
-      document.getElementById('mapLabel').textContent = `Lagos · ${total} active reports`;
+      document.getElementById('mapLabel').textContent = `${userAddress.split(',')[0]} · ${total} reports`;
 
       const recent = reports.slice(0, 4);
       if (recent.length === 0) {
@@ -179,6 +248,5 @@
   }
   loadReports();
 </script>
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD-placeholder&callback=Function.prototype"></script>
 </body>
 </html>
