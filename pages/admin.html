@@ -6,6 +6,22 @@
   <title>CleanCity — Admin</title>
   <link rel="stylesheet" href="../css/style.css"/>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet"/>
+  <style>
+    #adminMap { width:100%; height:200px; border-radius:14px; }
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1000; display:none; align-items:center; justify-content:center; padding:16px; }
+    .modal-overlay.show { display:flex; }
+    .modal-content { background:#fff; border-radius:16px; max-width:480px; width:100%; max-height:90vh; overflow-y:auto; }
+    .modal-image { width:100%; height:240px; object-fit:cover; border-radius:16px 16px 0 0; background:#f0f4ee; }
+    .modal-body { padding:20px; }
+    .modal-close { position:absolute; top:16px; right:16px; background:rgba(0,0,0,0.5); color:#fff; border:none; width:32px; height:32px; border-radius:50%; font-size:18px; cursor:pointer; z-index:2; }
+    .detail-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #e5e9e2; font-size:13px; }
+    .detail-row:last-child { border-bottom:none; }
+    .detail-label { color:#6b7280; font-weight:500; }
+    .detail-value { color:#1a1a1a; font-weight:500; text-align:right; }
+    #miniMap { width:100%; height:160px; border-radius:10px; margin-top:8px; }
+    .ai-section { background:#f0f7ec; border:1px solid #c8d5c0; border-radius:12px; padding:14px; margin-top:12px; }
+    .action-buttons { display:flex; gap:8px; margin-top:16px; }
+  </style>
 </head>
 <body style="background:#f0f4ee;">
 <div class="screen active" style="flex-direction:column;">
@@ -15,7 +31,7 @@
   <div class="admin-header">
     <div>
       <h2>Admin Panel</h2>
-      <p>Lagos State · LAWMA · <span id="adminName">—</span></p>
+      <p>LAWMA · <span id="adminName">—</span></p>
     </div>
     <div class="live-pill"><div class="live-dot"></div>Live</div>
   </div>
@@ -33,13 +49,18 @@
     </div>
 
     <div>
+      <div class="section-label">Hotspot Map</div>
+      <div id="adminMap" style="background:#d4e8cc; display:flex; align-items:center; justify-content:center; color:#1a6b3c; font-weight:500; font-size:13px;">Loading map...</div>
+    </div>
+
+    <div>
       <div class="section-label">Filter Reports</div>
       <div class="filter-row">
         <button class="filter-btn active" onclick="filterReports('all', this)">All</button>
         <button class="filter-btn" onclick="filterReports('Pending', this)">Pending</button>
         <button class="filter-btn" onclick="filterReports('In Progress', this)">In Progress</button>
         <button class="filter-btn" onclick="filterReports('Resolved', this)">Resolved</button>
-        <button class="filter-btn" onclick="filterReports('High', this)">🔴 High</button>
+        <button class="filter-btn" onclick="filterReports('High', this)">🔴 Urgent</button>
       </div>
     </div>
 
@@ -59,16 +80,118 @@
 
 </div>
 
+<!-- Report Detail Modal -->
+<div class="modal-overlay" id="reportModal">
+  <div class="modal-content" style="position:relative;">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <img id="modalImage" class="modal-image" src="" alt=""/>
+    <div class="modal-body">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;">
+        <div>
+          <h2 id="modalTitle" style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:700;color:#0f4d2a;">Report Details</h2>
+          <div id="modalId" style="font-size:11px;color:#6b7280;margin-top:2px;">—</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">
+          <span class="badge" id="modalStatus">—</span>
+          <span class="badge" id="modalSeverity">—</span>
+        </div>
+      </div>
+
+      <div class="ai-section">
+        <div style="font-size:11px;color:#1a6b3c;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">🤖 AI Generated Report</div>
+        <div style="font-size:13px;color:#1a1a1a;line-height:1.6;" id="modalDescription">—</div>
+        <div style="margin-top:8px;font-size:11px;color:#2d9e5f;font-weight:600;" id="modalConfidence">—</div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Details</div>
+        <div class="detail-row"><span class="detail-label">Category</span><span class="detail-value" id="modalCategory">—</span></div>
+        <div class="detail-row"><span class="detail-label">Submitted</span><span class="detail-value" id="modalDate">—</span></div>
+        <div class="detail-row"><span class="detail-label">Location</span><span class="detail-value" id="modalLocation">—</span></div>
+        <div class="detail-row"><span class="detail-label">GPS Coordinates</span><span class="detail-value" id="modalGPS">—</span></div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <div style="font-size:11px;color:#6b7280;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Location Map</div>
+        <div id="miniMap" style="background:#d4e8cc;display:flex;align-items:center;justify-content:center;color:#1a6b3c;font-size:13px;">Loading...</div>
+      </div>
+
+      <div class="action-buttons" id="modalActions"></div>
+    </div>
+  </div>
+</div>
+
 <script src="../js/supabase.js"></script>
 <script src="../js/auth.js"></script>
 <script src="../js/app.js"></script>
 <script>
   if (!requireAdmin()) {}
 
+  const BACKEND = 'https://cleancity-server.onrender.com';
   document.getElementById('adminName').textContent = getUserName();
 
   var allReports = [];
   var currentFilter = 'all';
+  var mapsKey = null;
+  var adminMap = null;
+  var miniMap = null;
+  var currentReport = null;
+
+  async function init() {
+    // Load maps key
+    try {
+      const keyRes = await fetch(`${BACKEND}/maps-key`);
+      const keyData = await keyRes.json();
+      if (keyData.key) {
+        mapsKey = keyData.key;
+        loadGoogleMaps(mapsKey);
+      }
+    } catch(e) { console.log('Maps unavailable'); }
+
+    await loadAdminReports();
+  }
+
+  function loadGoogleMaps(apiKey) {
+    if (window.google && window.google.maps) { initAdminMap(); return; }
+    const script = document.createElement('script');
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initAdminMap`;
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+  }
+
+  window.initAdminMap = function() {
+    adminMap = new google.maps.Map(document.getElementById('adminMap'), {
+      center: { lat: 6.5244, lng: 3.3792 },
+      zoom: 11,
+      disableDefaultUI: true,
+      styles: [{ featureType: 'poi', stylers: [{ visibility: 'off' }] }]
+    });
+    plotAllReports();
+  };
+
+  function plotAllReports() {
+    if (!adminMap) return;
+    const colors = { 'High': '#e24b4a', 'Medium': '#ef9f27', 'Low': '#2d9e5f', 'Resolved': '#2d9e5f' };
+    allReports.forEach(r => {
+      if (!r.latitude || !r.longitude) return;
+      const fillColor = r.status === 'Resolved' ? '#2d9e5f' : (colors[r.severity] || '#ef9f27');
+      const marker = new google.maps.Marker({
+        position: { lat: r.latitude, lng: r.longitude },
+        map: adminMap,
+        title: r.category,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          fillColor: fillColor,
+          fillOpacity: 0.9,
+          strokeColor: '#fff',
+          strokeWeight: 2,
+          scale: 8
+        }
+      });
+      marker.addListener('click', () => openReportModal(r));
+    });
+  }
 
   async function loadAdminReports() {
     const token = getToken();
@@ -85,9 +208,10 @@
       document.getElementById('adminPending').textContent = pending;
       document.getElementById('adminResolved').textContent = resolved;
 
+      if (adminMap) plotAllReports();
       renderReports();
     } catch(e) {
-      document.getElementById('adminReportList').innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load reports. Check connection.</p></div>';
+      document.getElementById('adminReportList').innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><p>Could not load reports.</p></div>';
     }
   }
 
@@ -114,47 +238,111 @@
     }
 
     document.getElementById('adminReportList').innerHTML = filtered.map(r => `
-      <div class="report-card" id="card-${r.id}">
-        <div class="report-card-top">
-          <div style="flex:1;">
-            <div class="report-card-title">${r.category}</div>
-            <div class="report-card-id">${r.id.substring(0,8).toUpperCase()} · ${timeAgo(r.created_at)}</div>
+      <div class="report-card" onclick="openReportModal(${JSON.stringify(r).replace(/"/g, '&quot;')})" style="cursor:pointer;">
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          ${r.image_url ? `<img src="${r.image_url}" style="width:60px;height:60px;object-fit:cover;border-radius:10px;flex-shrink:0;" onerror="this.style.display='none'"/>` : '<div style="width:60px;height:60px;background:#e8f3e0;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:24px;">📷</div>'}
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;">
+              <div style="font-size:14px;font-weight:600;color:#1a1a1a;">${r.category}</div>
+              <span class="badge ${statusBadge(r.status)}">${r.status}</span>
+            </div>
+            ${r.description ? `<div style="font-size:11px;color:#6b7280;line-height:1.4;margin-bottom:4px;">${r.description.substring(0,80)}${r.description.length > 80 ? '...' : ''}</div>` : ''}
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-size:10px;color:#6b7280;">${timeAgo(r.created_at)}</div>
+              <span class="badge ${sevBadge(r.severity)}">${r.severity}</span>
+            </div>
           </div>
-          <span class="badge ${statusBadge(r.status)}">${r.status}</span>
         </div>
-        ${r.description ? `<div style="font-size:12px;color:#374151;margin-top:8px;line-height:1.5;background:#f9fafb;border-radius:8px;padding:8px 10px;">${r.description.substring(0,150)}${r.description.length > 150 ? '...' : ''}</div>` : ''}
-        <div class="report-card-bottom" style="margin-top:8px;">
-          <div class="report-card-meta">📍 ${r.location || 'Lagos, Nigeria'}</div>
-          <span class="badge ${sevBadge(r.severity)}">${r.severity}</span>
-        </div>
-        ${r.ai_confidence ? `<div style="font-size:11px;color:#2d9e5f;margin-top:6px;font-weight:500;">🤖 AI: ${r.ai_confidence}% confidence</div>` : ''}
-        ${r.status !== 'Resolved' ? `
-        <div class="report-card-actions">
-          <button class="btn-advance" onclick="advanceStatus('${r.id}', '${r.status}', this)">
-            Mark as ${nextStatus(r.status)}
-          </button>
-        </div>` : `<div style="font-size:12px;color:#2d9e5f;margin-top:8px;font-weight:600;">✅ Issue Resolved</div>`}
       </div>
     `).join('');
   }
 
-  async function advanceStatus(reportId, currentStatus, btn) {
+  window.openReportModal = function(r) {
+    currentReport = r;
+
+    document.getElementById('modalImage').src = r.image_url || '';
+    document.getElementById('modalImage').onerror = function(){ this.style.background='#f0f4ee'; this.style.height='80px'; };
+    document.getElementById('modalTitle').textContent = r.category;
+    document.getElementById('modalId').textContent = 'ID: ' + r.id.substring(0,8).toUpperCase();
+    document.getElementById('modalDescription').textContent = r.description || 'No description provided.';
+    document.getElementById('modalConfidence').textContent = r.ai_confidence ? `AI Confidence: ${r.ai_confidence}%` : 'Manual report (no AI confidence)';
+    document.getElementById('modalCategory').textContent = r.category;
+    document.getElementById('modalDate').textContent = new Date(r.created_at).toLocaleString();
+    document.getElementById('modalLocation').textContent = r.location || 'Lagos, Nigeria';
+    document.getElementById('modalGPS').textContent = r.latitude && r.longitude ? `${r.latitude.toFixed(4)}, ${r.longitude.toFixed(4)}` : 'Not available';
+
+    const statusEl = document.getElementById('modalStatus');
+    statusEl.textContent = r.status;
+    statusEl.className = 'badge ' + statusBadge(r.status);
+
+    const sevEl = document.getElementById('modalSeverity');
+    sevEl.textContent = r.severity;
+    sevEl.className = 'badge ' + sevBadge(r.severity);
+
+    // Render action buttons
+    const actionsEl = document.getElementById('modalActions');
+    if (r.status !== 'Resolved') {
+      actionsEl.innerHTML = `
+        <button class="btn-advance" onclick="advanceReportStatus('${r.id}', '${r.status}')">Mark as ${nextStatus(r.status)}</button>
+        ${r.status === 'Pending' ? `<button class="btn-advance" onclick="advanceReportStatus('${r.id}', 'In Progress', true)" style="background:#fef2f2;color:#991b1b;border-color:#991b1b;">Mark Resolved</button>` : ''}
+      `;
+    } else {
+      actionsEl.innerHTML = '<div style="font-size:13px;color:#2d9e5f;font-weight:600;width:100%;text-align:center;padding:10px;">✅ Issue Resolved</div>';
+    }
+
+    // Show modal
+    document.getElementById('reportModal').classList.add('show');
+
+    // Init mini map for this report
+    if (r.latitude && r.longitude && window.google && window.google.maps) {
+      setTimeout(() => {
+        miniMap = new google.maps.Map(document.getElementById('miniMap'), {
+          center: { lat: r.latitude, lng: r.longitude },
+          zoom: 15,
+          disableDefaultUI: true
+        });
+        const colors = { 'High': '#e24b4a', 'Medium': '#ef9f27', 'Low': '#2d9e5f' };
+        new google.maps.Marker({
+          position: { lat: r.latitude, lng: r.longitude },
+          map: miniMap,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            fillColor: colors[r.severity] || '#ef9f27',
+            fillOpacity: 1,
+            strokeColor: '#fff',
+            strokeWeight: 3,
+            scale: 12
+          }
+        });
+      }, 200);
+    } else {
+      document.getElementById('miniMap').textContent = 'GPS not available for this report';
+    }
+  };
+
+  window.closeModal = function() {
+    document.getElementById('reportModal').classList.remove('show');
+  };
+
+  window.advanceReportStatus = async function(reportId, currentStatus, jumpToResolved) {
     const token = getToken();
-    const newStatus = nextStatus(currentStatus);
-    btn.textContent = 'Updating...';
-    btn.disabled = true;
+    const newStatus = jumpToResolved ? 'Resolved' : nextStatus(currentStatus);
     try {
       await supabase.updateReportStatus(reportId, newStatus, token);
-      showToast(`Report marked as ${newStatus}`);
+      showToast(`Marked as ${newStatus}`);
+      closeModal();
       await loadAdminReports();
     } catch(e) {
       showToast('Error updating status');
-      btn.disabled = false;
-      btn.textContent = `Mark as ${newStatus}`;
     }
-  }
+  };
 
-  loadAdminReports();
+  // Close modal when clicking overlay
+  document.getElementById('reportModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  init();
 </script>
 </body>
 </html>
