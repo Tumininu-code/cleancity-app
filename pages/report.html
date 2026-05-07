@@ -250,10 +250,12 @@
       window.location.href = 'success.html';
 
     } catch(err) {
-      showToast('Error submitting report. Please try again.');
-      btn.textContent = 'Submit Report';
-      btn.disabled = false;
-    }
+    console.error('Submit error full:', err);
+    console.error('Submit error message:', err.message);
+    showToast('Error: ' + err.message);
+    btn.textContent = 'Submit Report';
+    btn.disabled = false;
+}
   }
 </script>
 </body>
