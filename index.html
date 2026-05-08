@@ -11,9 +11,28 @@
   <link rel="stylesheet" href="css/style.css"/>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
-    .password-wrap { position: relative; }
-    .password-toggle { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #6b7280; font-size: 18px; padding: 0; user-select: none; }
-    .password-wrap .field-input { padding-right: 44px; }
+    .password-wrap { position: relative; display: flex; align-items: center; }
+    .password-wrap .field-input { padding-right: 44px; width: 100%; }
+    .password-toggle {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #1a6b3c;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border-radius: 6px;
+      transition: background 0.15s;
+    }
+    .password-toggle:hover { background: #e8f3e0; }
+    .password-toggle svg { width: 18px; height: 18px; stroke: #1a6b3c; fill: none; stroke-width: 2; }
   </style>
 </head>
 <body>
@@ -57,7 +76,12 @@
       <label>Password</label>
       <div class="password-wrap">
         <input id="loginPassword" type="password" placeholder="••••••••" class="field-input"/>
-        <button type="button" class="password-toggle" onclick="togglePassword('loginPassword', this)">👁</button>
+        <button type="button" class="password-toggle" onclick="togglePassword('loginPassword', this)" aria-label="Show password">
+          <svg viewBox="0 0 24 24" id="loginPasswordIcon">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
       </div>
     </div>
     <button class="btn-primary" onclick="handleLogin()">
@@ -92,7 +116,12 @@
       <label>Password</label>
       <div class="password-wrap">
         <input id="registerPassword" type="password" placeholder="Min 6 characters" class="field-input"/>
-        <button type="button" class="password-toggle" onclick="togglePassword('registerPassword', this)">👁</button>
+        <button type="button" class="password-toggle" onclick="togglePassword('registerPassword', this)" aria-label="Show password">
+          <svg viewBox="0 0 24 24" id="registerPasswordIcon">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
       </div>
     </div>
     <button class="btn-primary" onclick="handleRegister()">
@@ -108,12 +137,15 @@
 <script>
   function togglePassword(inputId, btn) {
     const input = document.getElementById(inputId);
+    const svg = btn.querySelector('svg');
     if (input.type === 'password') {
       input.type = 'text';
-      btn.textContent = '🙈';
+      // Eye-off icon
+      svg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
     } else {
       input.type = 'password';
-      btn.textContent = '👁';
+      // Eye icon
+      svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
     }
   }
 </script>
