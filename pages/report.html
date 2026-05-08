@@ -9,6 +9,13 @@
   <style>
     .ai-badge.rejected { background: #fef2f2; border-color: #fca5a5; color: #991b1b; }
     .ai-badge.rejected .ai-dot { background: #e24b4a; animation: none; }
+    .photo-options { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: none; align-items: flex-end; justify-content: center; }
+    .photo-options.show { display: flex; }
+    .photo-options-content { background: #fff; width: 100%; max-width: 400px; border-radius: 20px 20px 0 0; padding: 24px 20px; }
+    .photo-options-content h3 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; color: #0f4d2a; margin-bottom: 16px; text-align: center; }
+    .photo-option-btn { width: 100%; padding: 14px; border-radius: 12px; border: 1.5px solid #c8d5c0; background: #fff; color: #1a6b3c; font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; font-family: 'DM Sans', sans-serif; }
+    .photo-option-btn:hover { background: #e8f3e0; }
+    .photo-option-btn.cancel { color: #6b7280; border-color: #e5e9e2; }
   </style>
 </head>
 <body style="background:#f5f7f2;">
@@ -28,7 +35,7 @@
 
     <div>
       <div class="section-label">Photo Evidence <span style="color:#e24b4a;">*</span></div>
-      <div class="upload-box" id="uploadBox" onclick="triggerUpload()">
+      <div class="upload-box" id="uploadBox" onclick="openPhotoOptions()">
         <img id="imagePreview" src="" style="display:none;"/>
         <div id="uploadPlaceholder" style="display:flex;flex-direction:column;align-items:center;gap:8px;">
           <div style="font-size:36px;">📷</div>
@@ -36,7 +43,7 @@
           <div style="font-size:12px;color:#6b7280;">AI will write your full report instantly</div>
         </div>
       </div>
-     <input type="file" id="fileInput" accept="image/*" style="position:absolute;opacity:0;width:1px;height:1px;" onchange="handlePhotoUpload(event)"/>
+      <input type="file" id="fileInput" accept="image/*" style="position:absolute;opacity:0;width:1px;height:1px;" onchange="handlePhotoUpload(event)"/>
     </div>
 
     <div class="ai-badge" id="aiBadge">
@@ -104,6 +111,16 @@
 
 </div>
 
+<!-- Photo Options Modal -->
+<div class="photo-options" id="photoOptions">
+  <div class="photo-options-content">
+    <h3>Add Photo</h3>
+    <button class="photo-option-btn" onclick="useCamera()">📸 Take Photo</button>
+    <button class="photo-option-btn" onclick="useGallery()">🖼️ Choose from Gallery</button>
+    <button class="photo-option-btn cancel" onclick="closePhotoOptions()">Cancel</button>
+  </div>
+</div>
+
 <script src="../js/supabase.js"></script>
 <script src="../js/auth.js"></script>
 <script src="../js/app.js"></script>
@@ -116,6 +133,9 @@
   var aiResult = null;
   var uploadedFile = null;
   var manualEditMode = false;
+
+  // Detect if running in Capacitor (Android app)
+  const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
 
   getCurrentLocation().then(async loc => {
     currentLocation = loc;
@@ -130,13 +150,78 @@
     }
   });
 
-  function triggerUpload() {
-    document.getElementById('fileInput').click();
+  function openPhotoOptions() {
+    document.getElementById('photoOptions').classList.add('show');
   }
 
-  async function handlePhotoUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+  function closePhotoOptions() {
+    document.getElementById('photoOptions').classList.remove('show');
+  }
+
+  async function useCamera() {
+    closePhotoOptions();
+    if (isCapacitor) {
+      try {
+        const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+        const photo = await Camera.getPhoto({
+          quality: 85,
+          allowEditing: false,
+          resultType: CameraResultType.Base64,
+          source: CameraSource.Camera
+        });
+        await processCapacitorPhoto(photo);
+      } catch(err) {
+        console.error('Camera error:', err);
+        showToast('Camera not available');
+      }
+    } else {
+      // Web fallback - file input with capture
+      const input = document.getElementById('fileInput');
+      input.setAttribute('capture', 'environment');
+      input.click();
+    }
+  }
+
+  async function useGallery() {
+    closePhotoOptions();
+    if (isCapacitor) {
+      try {
+        const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
+        const photo = await Camera.getPhoto({
+          quality: 85,
+          allowEditing: false,
+          resultType: CameraResultType.Base64,
+          source: CameraSource.Photos
+        });
+        await processCapacitorPhoto(photo);
+      } catch(err) {
+        console.error('Gallery error:', err);
+        showToast('Gallery not available');
+      }
+    } else {
+      const input = document.getElementById('fileInput');
+      input.removeAttribute('capture');
+      input.click();
+    }
+  }
+
+  // Convert Capacitor photo to File and process
+  async function processCapacitorPhoto(photo) {
+    const base64 = photo.base64String;
+    const format = photo.format || 'jpeg';
+    const dataUrl = `data:image/${format};base64,${base64}`;
+
+    // Convert base64 to Blob then File
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const file = new File([blob], `photo.${format}`, { type: `image/${format}` });
+
+    // Trigger same processing flow
+    await processPhotoFile(file);
+  }
+
+  // Process a file (whether from Capacitor or input)
+  async function processPhotoFile(file) {
     uploadedFile = file;
 
     const preview = document.getElementById('imagePreview');
@@ -175,21 +260,17 @@
       console.error('AI error:', err);
       aiResult = null;
       uploadedFile = null;
-
-      // Reset preview
       preview.src = '';
       preview.style.display = 'none';
       placeholder.style.display = 'flex';
       document.getElementById('fileInput').value = '';
 
       if (err.rejected) {
-        // Image was rejected for not being relevant
         badge.classList.add('rejected');
         dot.className = 'ai-dot';
         text.textContent = '❌ ' + err.message;
         showToast('Image rejected — please upload a relevant photo');
       } else {
-        // Generic AI error
         dot.className = 'ai-dot';
         text.textContent = '⚠️ AI unavailable — please fill in manually';
         document.getElementById('manualFields').style.display = 'flex';
@@ -197,6 +278,13 @@
         document.getElementById('manualFields').style.gap = '14px';
       }
     }
+  }
+
+  // Web fallback: handle file input change
+  async function handlePhotoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    await processPhotoFile(file);
   }
 
   function toggleManualEdit() {
