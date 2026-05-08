@@ -44,6 +44,7 @@
         </div>
       </div>
       <input type="file" id="fileInput" accept="image/*" style="position:absolute;opacity:0;width:1px;height:1px;" onchange="handlePhotoUpload(event)"/>
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" style="position:absolute;opacity:0;width:1px;height:1px;" onchange="handlePhotoUpload(event)"/>
     </div>
 
     <div class="ai-badge" id="aiBadge">
@@ -134,9 +135,6 @@
   var uploadedFile = null;
   var manualEditMode = false;
 
-  // Detect if running in Capacitor (Android app)
-  const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
-
   getCurrentLocation().then(async loc => {
     currentLocation = loc;
     try {
@@ -158,69 +156,22 @@
     document.getElementById('photoOptions').classList.remove('show');
   }
 
-  async function useCamera() {
+  function useCamera() {
     closePhotoOptions();
-    if (isCapacitor) {
-      try {
-        const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
-        const photo = await Camera.getPhoto({
-          quality: 85,
-          allowEditing: false,
-          resultType: CameraResultType.Base64,
-          source: CameraSource.Camera
-        });
-        await processCapacitorPhoto(photo);
-      } catch(err) {
-        console.error('Camera error:', err);
-        showToast('Camera not available');
-      }
-    } else {
-      // Web fallback - file input with capture
-      const input = document.getElementById('fileInput');
-      input.setAttribute('capture', 'environment');
-      input.click();
-    }
+    document.getElementById('cameraInput').click();
   }
 
-  async function useGallery() {
+  function useGallery() {
     closePhotoOptions();
-    if (isCapacitor) {
-      try {
-        const { Camera, CameraResultType, CameraSource } = await import('@capacitor/camera');
-        const photo = await Camera.getPhoto({
-          quality: 85,
-          allowEditing: false,
-          resultType: CameraResultType.Base64,
-          source: CameraSource.Photos
-        });
-        await processCapacitorPhoto(photo);
-      } catch(err) {
-        console.error('Gallery error:', err);
-        showToast('Gallery not available');
-      }
-    } else {
-      const input = document.getElementById('fileInput');
-      input.removeAttribute('capture');
-      input.click();
-    }
+    document.getElementById('fileInput').click();
   }
 
-  // Convert Capacitor photo to File and process
-  async function processCapacitorPhoto(photo) {
-    const base64 = photo.base64String;
-    const format = photo.format || 'jpeg';
-    const dataUrl = `data:image/${format};base64,${base64}`;
-
-    // Convert base64 to Blob then File
-    const res = await fetch(dataUrl);
-    const blob = await res.blob();
-    const file = new File([blob], `photo.${format}`, { type: `image/${format}` });
-
-    // Trigger same processing flow
+  async function handlePhotoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
     await processPhotoFile(file);
   }
 
-  // Process a file (whether from Capacitor or input)
   async function processPhotoFile(file) {
     uploadedFile = file;
 
@@ -264,6 +215,7 @@
       preview.style.display = 'none';
       placeholder.style.display = 'flex';
       document.getElementById('fileInput').value = '';
+      document.getElementById('cameraInput').value = '';
 
       if (err.rejected) {
         badge.classList.add('rejected');
@@ -278,13 +230,6 @@
         document.getElementById('manualFields').style.gap = '14px';
       }
     }
-  }
-
-  // Web fallback: handle file input change
-  async function handlePhotoUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    await processPhotoFile(file);
   }
 
   function toggleManualEdit() {
