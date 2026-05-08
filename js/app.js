@@ -1,5 +1,4 @@
 // CleanCity — Core App Logic
-// AI Classification via CleanCity Backend Server (Secure)
 // Student: Olumutimi Jesutumininu | MIVA Open University 2026
 
 const BACKEND_URL = 'https://cleancity-server.onrender.com';
@@ -32,18 +31,23 @@ async function analyzeImageWithAI(file) {
   const response = await fetch(`${BACKEND_URL}/classify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      imageBase64: base64,
-      mimeType: mediaType,
-      location: locationText
-    })
+    body: JSON.stringify({ imageBase64: base64, mimeType: mediaType, location: locationText })
   });
+
+  const data = await response.json();
+
+  // Handle image rejection (irrelevant content)
+  if (response.status === 422 && data.rejected) {
+    const err = new Error(data.reason || 'Image not relevant to environmental issues');
+    err.rejected = true;
+    throw err;
+  }
 
   if (!response.ok) {
     throw new Error(`Server error: ${response.status}`);
   }
 
-  return await response.json();
+  return data;
 }
 
 function getCurrentLocation() {
@@ -100,6 +104,25 @@ function showToast(msg) {
   toast.textContent = msg;
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2800);
+}
+
+// Cache helpers - basic offline caching
+function cacheReports(reports) {
+  try {
+    localStorage.setItem('cc_cached_reports', JSON.stringify(reports));
+    localStorage.setItem('cc_cached_at', Date.now().toString());
+  } catch(e) {}
+}
+
+function getCachedReports() {
+  try {
+    const cached = localStorage.getItem('cc_cached_reports');
+    return cached ? JSON.parse(cached) : null;
+  } catch(e) { return null; }
+}
+
+function isOnline() {
+  return navigator.onLine;
 }
 
 function getToken() { return localStorage.getItem('cc_token'); }
